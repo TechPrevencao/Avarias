@@ -294,7 +294,7 @@ def app():
             color_continuous_scale="Viridis"
         )
         st.plotly_chart(fig_heatmap_custo_mes)
-        
+        # Create a user and password to acess this system, starting on the avarias.py, and add a button on the lateral bar to go to the dashboard.py, but now with another user and password, and a button to go back (putting the user and password again), your create the login popup to get acess
         # Padrões Sazonais - Heatmap por Semana e Ano (Custos)
         custo_por_semana_ano = df_all.groupby(['ano', 'semana'])['VLR. TOT. CUSTO'].sum().reset_index()
         fig_heatmap_custo_semana = px.density_heatmap(
@@ -386,3 +386,71 @@ def app():
 
 if __name__ == "__main__":
     app()
+
+    VALID_CREDENTIALS = {
+    "avarias_user": "avarias123",
+    "dashboard_user": "dashboard123"
+}
+
+def check_login(username, password, page):
+    if page == "avarias":
+        return username == "avarias_user" and password == VALID_CREDENTIALS["avarias_user"]
+    elif page == "dashboard":
+        return username == "dashboard_user" and password == VALID_CREDENTIALS["dashboard_user"]
+    return False
+
+def login_popup(page="avarias"):
+    if f"logged_in_{page}" not in st.session_state:
+        st.session_state[f"logged_in_{page}"] = False
+    
+    if not st.session_state[f"logged_in_{page}"]:
+        with st.form(key=f"login_form_{page}"):
+            st.write(f"Login para {page.capitalize()}")
+            username = st.text_input("Usuário")
+            password = st.text_input("Senha", type="password")
+            submit = st.form_submit_button("Login")
+            
+            if submit:
+                if check_login(username, password, page):
+                    st.session_state[f"logged_in_{page}"] = True
+                    st.success("Login bem-sucedido!")
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha inválidos")
+        return False
+    return True
+
+def app():
+    # Check login for avarias
+    if not login_popup("avarias"):
+        return
+
+    st.title("Dashboard de Avarias")
+    
+    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    
+    # Sidebar with navigation
+    with st.sidebar:
+        st.title("Navegação")
+        setor = st.selectbox('Escolha o setor', folhas)
+        tipo_periodo = st.sidebar.selectbox('Escolha o período', ['Geral', 'Mês', 'Semana'])
+        
+        # Navigation button to Dashboard
+        if st.button("Ir para Dashboard Prevenção"):
+            st.session_state.page = "dashboard"
+            st.session_state.logged_in_avarias = False  # Reset login state
+            st.rerun()
+
+    # [Rest of your original app() function remains unchanged]
+
+if __name__ == "__main__":
+    if "page" not in st.session_state:
+        st.session_state.page = "avarias"
+    
+    if st.session_state.page == "avarias":
+        app()
+    elif st.session_state.page == "dashboard":
+        # Import and run the dashboard app
+        from dashboard import app as dashboard_app
+        dashboard_app()
