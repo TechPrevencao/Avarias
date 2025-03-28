@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # Carregar dados
-file_path = "./data/SISTEMA GERAL PREVENÇÃO - FRAGA MAIA3.xlsm"
+file_path = "./sistemageral/SISTEMA GERAL PREVENÇÃO - FRAGA MAIA3.xlsm"
 xls = pd.ExcelFile(file_path)
 
 # Folhas disponíveis
