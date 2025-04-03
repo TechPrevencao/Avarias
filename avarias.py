@@ -7,15 +7,15 @@ from datetime import datetime
 
 # Constants and functions
 VALID_CREDENTIALS = {
-    "avarias_user": "avarias123",
-    "dashboard_user": "dashboard123"
+    "admin": "avarias123",
+    "admin": "avarias123"
 }
 
 def check_login(username, password, page):
     if page == "avarias":
-        return username == "avarias_user" and password == VALID_CREDENTIALS["avarias_user"]
+        return username == "admin" and password == VALID_CREDENTIALS["admin"]
     elif page == "dashboard":
-        return username == "dashboard_user" and password == VALID_CREDENTIALS["dashboard_user"]
+        return username == "admin" and password == VALID_CREDENTIALS["admin"]
     return False
 
 def login_popup(page="avarias"):
