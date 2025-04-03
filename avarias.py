@@ -48,6 +48,7 @@ def carregar_dados(nome_folha):
     try:
         df = pd.read_excel(xls, sheet_name=nome_folha, skiprows=1)
         
+        # Ensure numeric columns are properly formatted
         df['QTD'] = pd.to_numeric(df['QTD'], errors='coerce')
 
         def limpar_coluna_moeda(coluna):
@@ -56,6 +57,7 @@ def carregar_dados(nome_folha):
                 return pd.to_numeric(coluna, errors='coerce')
             return pd.to_numeric(str(coluna).replace('R$ ', '').replace(',', '.'), errors='coerce')
 
+        # Clean monetary columns
         for col in ['VLR. UNIT. VENDA', 'VLR. UNIT. CUSTO', 'VLR. TOT. VENDA', 'VLR. TOT. CUSTO']:
             if col in df.columns:
                 df[col] = limpar_coluna_moeda(df[col])
@@ -63,6 +65,7 @@ def carregar_dados(nome_folha):
                 st.warning(f"Coluna {col} não encontrada nos dados")
                 df[col] = 0
                 
+        # Filter out invalid QTD values
         df = df[(df['QTD'] > 0)].dropna(subset=['QTD'])
         return df
     except Exception as e:
@@ -146,7 +149,8 @@ def app():
         df_filtrado = filtrar_por_periodo(df, tipo_periodo, valor_periodo, meses)
     else:
         df_filtrado = df.copy()
-        df_all = pd.concat([process.processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
+        # Fixed the typo: removed 'process.' prefix
+        df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
         
         # Gráficos para visão geral
         vendas_por_mes = df.groupby('mês').agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
