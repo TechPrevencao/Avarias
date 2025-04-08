@@ -6,17 +6,9 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # Constants and functions
-VALID_CREDENTIALS = {
-    "admin": "avarias123",
-    "admin": "avarias123"
-}
-
-def check_login(username, password, page):
-    if page == "avarias":
-        return username == "admin" and password == VALID_CREDENTIALS["admin"]
-    elif page == "dashboard":
-        return username == "admin" and password == VALID_CREDENTIALS["admin"]
-    return False
+VALID_CREDENTIALS = {"admin": "avarias123"}
+def check_login(username, password):
+    return username in VALID_CREDENTIALS and password == VALID_CREDENTIALS[username]
 
 def login_popup(page="avarias"):
     if f"logged_in_{page}" not in st.session_state:
@@ -30,7 +22,7 @@ def login_popup(page="avarias"):
             submit = st.form_submit_button("Login")
             
             if submit:
-                if check_login(username, password, page):
+                if check_login(username, password):
                     st.session_state[f"logged_in_{page}"] = True
                     st.success("Login bem-sucedido!")
                     st.rerun()

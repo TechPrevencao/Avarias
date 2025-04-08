@@ -3,6 +3,32 @@ import streamlit as st
 import plotly.express as px
 from datetime import datetime
 
+VALID_CREDENTIALS = {"admin": "prevencao123"}
+def check_login(username, password):
+    return username in VALID_CREDENTIALS and password == VALID_CREDENTIALS[username]
+
+def login_popup(page="avarias"):
+    if f"logged_in_{page}" not in st.session_state:
+        st.session_state[f"logged_in_{page}"] = False
+    
+    if not st.session_state[f"logged_in_{page}"]:
+        with st.form(key=f"login_form_{page}"):
+            st.write(f"Login para {page.capitalize()}")
+            username = st.text_input("Usuário")
+            password = st.text_input("Senha", type="password")
+            submit = st.form_submit_button("Login")
+            
+            if submit:
+                if check_login(username, password):
+                    st.session_state[f"logged_in_{page}"] = True
+                    st.success("Login bem-sucedido!")
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha inválidos")
+        return False
+    return True
+
+
 # Configuração da página
 st.set_page_config(
     page_title="Dashboard Prevenção",
@@ -130,6 +156,8 @@ def formatar_moeda(valor):
 
 # Interface do Streamlit
 def app():
+    if not login_popup("dashboard"):
+        return
     st.title("Dashboard Prevenção 👮🏻‍♂️")
     
     # Lista de meses em português
@@ -221,80 +249,11 @@ def app():
     st.dataframe(df_resumo[['DESCRIÇÃO', 'QTD', 'CÓDIGO INTERNO', 'TOTAL (R$)']])
 
 if __name__ == "__main__":
-    app()
-    VALID_CREDENTIALS = {
-    "avarias_user": "avarias123",
-    "dashboard_user": "dashboard123"
-}
-
-def check_login(username, password, page):
-    if page == "avarias":
-        return username == "avarias_user" and password == VALID_CREDENTIALS["avarias_user"]
-    elif page == "dashboard":
-        return username == "dashboard_user" and password == VALID_CREDENTIALS["dashboard_user"]
-    return False
-
-def login_popup(page="dashboard"):
-    if f"logged_in_{page}" not in st.session_state:
-        st.session_state[f"logged_in_{page}"] = False
-    
-    if not st.session_state[f"logged_in_{page}"]:
-        with st.form(key=f"login_form_{page}"):
-            st.write(f"Login para {page.capitalize()}")
-            username = st.text_input("Usuário")
-            password = st.text_input("Senha", type="password")
-            submit = st.form_submit_button("Login")
-            
-            if submit:
-                if check_login(username, password, page):
-                    st.session_state[f"logged_in_{page}"] = True
-                    st.success("Login bem-sucedido!")
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha inválidos")
-        return False
-    return True
-
-def app():
-    # Check login for dashboard
-    if not login_popup("dashboard"):
-        return
-
-    st.set_page_config(
-        page_title="Dashboard Prevenção",
-        page_icon="👮🏻‍♂️",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
-    st.title("Dashboard Prevenção 👮🏻‍♂️")
-    
-    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    
-    # Sidebar with navigation
-    with st.sidebar:
-        st.title('👮🏻‍♂️ Dashboard Prevenção')
-        setor = st.selectbox('Escolha o setor', folhas)
-        tipo_periodo = st.selectbox('Escolha o período', ['Mês', 'Semana'])
-        
-        # Navigation button back to Avarias
-        if st.button("Voltar para Dashboard Avarias"):
-            st.session_state.page = "avarias"
-            st.session_state.logged_in_dashboard = False  # Reset login state
-            st.rerun()
-        
-        # [Rest of your sidebar filters remain unchanged]
-
-    # [Rest of your original app() function remains unchanged]
-
-if __name__ == "__main__":
     if "page" not in st.session_state:
         st.session_state.page = "dashboard"
     
     if st.session_state.page == "dashboard":
         app()
-    elif st.session_state.page == "avarias":
-        # Import and run the avarias app
+    elif st.session_state.page == "dashboard":
         from avarias import app as avarias_app
         avarias_app()
