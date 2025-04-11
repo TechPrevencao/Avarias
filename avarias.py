@@ -34,7 +34,7 @@ def login_popup(page="avarias"):
 # Carregar dados
 file_path = r"./avarias/SISTEMA DE GESTÃO DE AVARIAS PREVENÇÃO - FRAGA MAIA (1).xlsm"
 xls = pd.ExcelFile(file_path)
-folhas = ["Avarias Padaria", "Avarias Salgados", "Avarias Rotisseria"]
+folhas = ["Avarias Padaria", "Avarias Salgados", "Avarias Rotisseria", "Avarias Açougue"]
 
 def carregar_dados(nome_folha):
     try:
