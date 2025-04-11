@@ -145,6 +145,14 @@ def app():
         df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
         
         # Gráficos para visão geral
+        vendas_por_mes_por_setor = df_all.groupby(['CATEGORIA', 'mês']).agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
+        vendas_por_mes_por_setor['mês_nome'] = vendas_por_mes_por_setor['mês'].apply(
+            lambda x: meses[int(x) - 1] if pd.notna(x) else 'Desconhecido'
+        )
+        
+        fig_vendas_por_setor = px.line(vendas_por_mes_por_setor, x='mês_nome', y='VLR. TOT. VENDA', color='CATEGORIA')
+        fig_vendas_por_setor.update_layout(title="Valor Total de Venda por Mês por Setor")
+        st.plotly_chart(fig_vendas_por_setor)
         vendas_por_mes = df.groupby('mês').agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
         vendas_por_mes['mês_nome'] = vendas_por_mes['mês'].apply(
             lambda x: meses[int(x) - 1] if pd.notna(x) else 'Desconhecido'
