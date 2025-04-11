@@ -6,17 +6,9 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # Constants and functions
-VALID_CREDENTIALS = {
-    "admin": "avarias123",
-    "admin": "avarias123"
-}
-
-def check_login(username, password, page):
-    if page == "avarias":
-        return username == "admin" and password == VALID_CREDENTIALS["admin"]
-    elif page == "dashboard":
-        return username == "admin" and password == VALID_CREDENTIALS["admin"]
-    return False
+VALID_CREDENTIALS = {"admin": "avarias123"}
+def check_login(username, password):
+    return username in VALID_CREDENTIALS and password == VALID_CREDENTIALS[username]
 
 def login_popup(page="avarias"):
     if f"logged_in_{page}" not in st.session_state:
@@ -30,7 +22,7 @@ def login_popup(page="avarias"):
             submit = st.form_submit_button("Login")
             
             if submit:
-                if check_login(username, password, page):
+                if check_login(username, password):
                     st.session_state[f"logged_in_{page}"] = True
                     st.success("Login bem-sucedido!")
                     st.rerun()
@@ -42,7 +34,7 @@ def login_popup(page="avarias"):
 # Carregar dados
 file_path = r"./avarias/SISTEMA DE GESTÃO DE AVARIAS PREVENÇÃO - FRAGA MAIA (1).xlsm"
 xls = pd.ExcelFile(file_path)
-folhas = ["Avarias Padaria", "Avarias Salgados", "Avarias Rotisseria"]
+folhas = ["Avarias Padaria", "Avarias Salgados", "Avarias Rotisseria", "Avarias Açougue"]
 
 def carregar_dados(nome_folha):
     try:
@@ -153,6 +145,14 @@ def app():
         df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
         
         # Gráficos para visão geral
+        vendas_por_mes_por_setor = df_all.groupby(['CATEGORIA', 'mês']).agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
+        vendas_por_mes_por_setor['mês_nome'] = vendas_por_mes_por_setor['mês'].apply(
+            lambda x: meses[int(x) - 1] if pd.notna(x) else 'Desconhecido'
+        )
+        
+        fig_vendas_por_setor = px.line(vendas_por_mes_por_setor, x='mês_nome', y='VLR. TOT. VENDA', color='CATEGORIA')
+        fig_vendas_por_setor.update_layout(title="Valor Total de Venda por Mês por Setor")
+        st.plotly_chart(fig_vendas_por_setor)
         vendas_por_mes = df.groupby('mês').agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
         vendas_por_mes['mês_nome'] = vendas_por_mes['mês'].apply(
             lambda x: meses[int(x) - 1] if pd.notna(x) else 'Desconhecido'
