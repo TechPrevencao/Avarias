@@ -3,7 +3,10 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
+import base64
 from datetime import datetime
+import io
 
 # Constants and functions
 VALID_CREDENTIALS = {"admin": "avarias123"}
@@ -102,6 +105,23 @@ def resumo_avarias(df):
         'CÓD. INT.': 'first'
     }).reset_index()
 
+def all_produtos_por_qtd(df):
+    # Group all products by quantity and value, descending by quantity
+    grouped = df.groupby('DESCRIÇÃO').agg({'QTD': 'sum', 'VLR. TOT. VENDA': 'sum'}).sort_values(by='QTD', ascending=False).reset_index()
+    return grouped
+
+def fig_to_base64_png(fig):
+    img_bytes = pio.to_image(fig, format="png", width=1000, height=600, scale=2)
+    return base64.b64encode(img_bytes).decode("utf-8")
+
+def exportar_pdf(df, titulo="Tabela de Avarias Detalhada"):
+    st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
+    return None
+
+def exportar_tudo_pdf(figs_dict, tabelas_dict, titulo="Relatório de Avarias"):
+    st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
+    return None
+
 def app():
     if not login_popup("avarias"):
         return
@@ -141,7 +161,6 @@ def app():
         df_filtrado = filtrar_por_periodo(df, tipo_periodo, valor_periodo, meses)
     else:
         df_filtrado = df.copy()
-        # Fixed the typo: removed 'process.' prefix
         df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
         
         # Gráficos para visão geral
@@ -181,23 +200,62 @@ def app():
         st.metric("Total de Vendas", f"R$ {total_vendas:,.2f}")
         st.metric("Total de Custo", f"R$ {total_custo:,.2f}")
 
+        figs_dict = {}
+        tabelas_dict = {}
+
         top_10_qtd = top_10_por_qtd(df_filtrado)
         if not top_10_qtd.empty:
             fig_qtd = px.bar(top_10_qtd.reset_index(), x='DESCRIÇÃO', y='QTD',
                            title="Top 10 Produtos por Quantidade Perdida")
             st.plotly_chart(fig_qtd)
+            figs_dict["Top 10 Produtos por Quantidade Perdida"] = fig_qtd
+        else:
+            figs_dict["Top 10 Produtos por Quantidade Perdida"] = None
+
+        all_produtos = all_produtos_por_qtd(df_filtrado)
+        if not all_produtos.empty:
+            st.markdown("### Todos os Produtos por Quantidade Perdida (Ordem Decrescente)")
+            fig_all = px.bar(
+                all_produtos,
+                x='DESCRIÇÃO',
+                y='QTD',
+                title="Todos os Produtos por Quantidade Perdida",
+                labels={'DESCRIÇÃO': 'Produto', 'QTD': 'Quantidade Perdida'}
+            )
+            fig_all.update_traces(
+                text=[
+                    f"Qtd: {row.QTD:.0f}<br>Valor: R$ {row['VLR. TOT. VENDA']:,.2f}"
+                    for _, row in all_produtos.iterrows()
+                ],
+                textposition='outside'
+            )
+            fig_all.update_layout(
+                xaxis_tickangle=-45,
+                margin=dict(b=150),
+                height=600
+            )
+            st.plotly_chart(fig_all, use_container_width=True)
+            figs_dict["Todos os Produtos por Quantidade Perdida"] = fig_all
+        else:
+            figs_dict["Todos os Produtos por Quantidade Perdida"] = None
 
         top_10_vendas = top_10_por_valor_venda(df_filtrado)
         if not top_10_vendas.empty:
             fig_vendas = px.bar(top_10_vendas.reset_index(), x='DESCRIÇÃO', y='VLR. TOT. VENDA',
                               title="Top 10 Produtos por Valor Total de Venda Perdido")
             st.plotly_chart(fig_vendas)
+            figs_dict["Top 10 Produtos por Valor Total de Venda Perdido"] = fig_vendas
+        else:
+            figs_dict["Top 10 Produtos por Valor Total de Venda Perdido"] = None
 
         top_10_custo = top_10_por_valor_custo(df_filtrado)
         if not top_10_custo.empty:
             fig_custo = px.bar(top_10_custo.reset_index(), x='DESCRIÇÃO', y='VLR. TOT. CUSTO',
                              title="Top 10 Produtos por Valor Total de Custo Perdido")
             st.plotly_chart(fig_custo)
+            figs_dict["Top 10 Produtos por Valor Total de Custo Perdido"] = fig_custo
+        else:
+            figs_dict["Top 10 Produtos por Valor Total de Custo Perdido"] = None
 
         st.markdown("### Tabela de Avarias Detalhada")
         df_exibicao = df_filtrado[['DATA', 'DESCRIÇÃO', 'QTD', 'VLR. UNIT. VENDA', 'VLR. UNIT. CUSTO', 
@@ -206,6 +264,12 @@ def app():
             df_exibicao[f'{col} (R$)'] = df_exibicao[col].apply(lambda x: f"R$ {x:,.2f}" if pd.notna(x) else "R$ 0,00")
         st.dataframe(df_exibicao[['DATA', 'DESCRIÇÃO', 'QTD', 'VLR. UNIT. VENDA (R$)', 
                                 'VLR. UNIT. CUSTO (R$)', 'VLR. TOT. VENDA (R$)', 'VLR. TOT. CUSTO (R$)']])
+        tabelas_dict["Tabela de Avarias Detalhada"] = df_exibicao[['DATA', 'DESCRIÇÃO', 'QTD', 'VLR. UNIT. VENDA (R$)', 
+                                'VLR. UNIT. CUSTO (R$)', 'VLR. TOT. VENDA (R$)', 'VLR. TOT. CUSTO (R$)']]
+
+        # Botão para exportar tudo para PDF
+        if st.button("Exportar gráficos e tabelas para PDF"):
+            st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
 
         st.markdown("### Tabela de Avarias - Resumo")
         df_resumo = resumo_avarias(df_filtrado)
