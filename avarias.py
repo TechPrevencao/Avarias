@@ -7,9 +7,15 @@ import plotly.io as pio
 import base64
 from datetime import datetime
 import io
+import tempfile
+from fpdf import FPDF
+from PIL import Image
 
 # Constants and functions
-VALID_CREDENTIALS = {"admin": "avarias123"}
+VALID_CREDENTIALS = {
+    "admin": "avarias123",
+    "kairo": "avarias123"
+}
 def check_login(username, password):
     return username in VALID_CREDENTIALS and password == VALID_CREDENTIALS[username]
 
@@ -122,6 +128,25 @@ def exportar_tudo_pdf(figs_dict, tabelas_dict, titulo="Relatório de Avarias"):
     st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
     return None
 
+def plotly_fig_to_pdf(fig, pdf_title="grafico_avarias.pdf"):
+    # Export Plotly figure to PNG in memory
+    img_bytes = pio.to_image(fig, format="png", width=1000, height=600, scale=2)
+    # Save PNG to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
+        tmp_img.write(img_bytes)
+        tmp_img.flush()
+        img_path = tmp_img.name
+
+    # Create PDF and add image
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf.add_page()
+    cover = Image.open(img_path)
+    width, height = cover.size
+    w, h = float(width * 0.264583), float(height * 0.264583)  # px to mm
+    pdf.image(img_path, x=10, y=10, w=min(w, 277), h=min(h, 190))  # A4 landscape max: 297x210mm
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    return pdf_bytes
+
 def app():
     if not login_popup("avarias"):
         return
@@ -131,15 +156,42 @@ def app():
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
+    # Restrição de acesso para o usuário kairo
+    usuario_atual = None
+    for user in VALID_CREDENTIALS:
+        if st.session_state.get(f"logged_in_avarias") and st.session_state.get("logged_in_avarias"):
+            if st.session_state.get("login_form_avarias-Usuário", "") == user:
+                usuario_atual = user
+                break
+    # Alternativa: pegar o usuário do último login
+    if "login_form_avarias-Usuário" in st.session_state:
+        usuario_atual = st.session_state["login_form_avarias-Usuário"]
+    elif "login_form_avarias-Usuário" not in st.session_state and "kairo" in st.session_state:
+        usuario_atual = "kairo"
+
     with st.sidebar:
         st.title("Navegação")
-        setor = st.selectbox('Escolha o setor', folhas)
+        if usuario_atual == "kairo":
+            setor = "Avarias Padaria"
+            st.markdown("**Usuário restrito: apenas Avarias Padaria**")
+        else:
+            setor = st.selectbox('Escolha o setor', folhas)
         tipo_periodo = st.selectbox('Escolha o período', ['Geral', 'Mês', 'Semana'])
         
-        if st.button("Ir para Dashboard Prevenção"):
-            st.session_state.page = "dashboard"
-            st.session_state.logged_in_avarias = False
-            st.rerun()
+        # Carregar dados para filtro de responsável
+        df_temp = carregar_dados(setor)
+        responsaveis = []
+        if not df_temp.empty and 'RESPONSÁVEL' in df_temp.columns:
+            responsaveis = sorted(df_temp['RESPONSÁVEL'].dropna().unique())
+            responsavel_filter = st.multiselect("Filtrar por Responsável", responsaveis)
+        else:
+            responsavel_filter = []
+
+        if usuario_atual != "kairo":
+            if st.button("Ir para Dashboard Prevenção"):
+                st.session_state.page = "dashboard"
+                st.session_state.logged_in_avarias = False
+                st.rerun()
 
     df = carregar_dados(setor)
     if df.empty:
@@ -147,6 +199,10 @@ def app():
         return
         
     df = processar_datas(df)
+
+    # Aplicar filtro de responsável, se houver
+    if responsavel_filter and 'RESPONSÁVEL' in df.columns:
+        df = df[df['RESPONSÁVEL'].isin(responsavel_filter)]
 
     if tipo_periodo == 'Mês':
         mes_selecionado = st.sidebar.selectbox('Escolha o mês', meses)
@@ -236,6 +292,16 @@ def app():
             )
             st.plotly_chart(fig_all, use_container_width=True)
             figs_dict["Todos os Produtos por Quantidade Perdida"] = fig_all
+
+            # PDF download button
+            if st.button("Baixar gráfico em PDF"):
+                pdf_bytes = plotly_fig_to_pdf(fig_all)
+                st.download_button(
+                    label="Download PDF",
+                    data=pdf_bytes,
+                    file_name="grafico_avarias.pdf",
+                    mime="application/pdf"
+                )
         else:
             figs_dict["Todos os Produtos por Quantidade Perdida"] = None
 
