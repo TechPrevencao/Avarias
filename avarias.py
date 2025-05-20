@@ -14,7 +14,7 @@ from PIL import Image
 # Constants and functions
 VALID_CREDENTIALS = {
     "admin": "avarias123",
-    "kairo": "avarias123"
+    "gerente": "avarias123"
 }
 def check_login(username, password):
     return username in VALID_CREDENTIALS and password == VALID_CREDENTIALS[username]
@@ -22,7 +22,9 @@ def check_login(username, password):
 def login_popup(page="avarias"):
     if f"logged_in_{page}" not in st.session_state:
         st.session_state[f"logged_in_{page}"] = False
-    
+    if f"username_{page}" not in st.session_state:
+        st.session_state[f"username_{page}"] = None
+
     if not st.session_state[f"logged_in_{page}"]:
         with st.form(key=f"login_form_{page}"):
             st.write(f"Login para {page.capitalize()}")
@@ -33,6 +35,7 @@ def login_popup(page="avarias"):
             if submit:
                 if check_login(username, password):
                     st.session_state[f"logged_in_{page}"] = True
+                    st.session_state[f"username_{page}"] = username  # <-- Store username
                     st.success("Login bem-sucedido!")
                     st.rerun()
                 else:
@@ -156,28 +159,20 @@ def app():
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-    # Restrição de acesso para o usuário kairo
-    usuario_atual = None
-    for user in VALID_CREDENTIALS:
-        if st.session_state.get(f"logged_in_avarias") and st.session_state.get("logged_in_avarias"):
-            if st.session_state.get("login_form_avarias-Usuário", "") == user:
-                usuario_atual = user
-                break
-    # Alternativa: pegar o usuário do último login
-    if "login_form_avarias-Usuário" in st.session_state:
-        usuario_atual = st.session_state["login_form_avarias-Usuário"]
-    elif "login_form_avarias-Usuário" not in st.session_state and "kairo" in st.session_state:
-        usuario_atual = "kairo"
+    # Identificação do usuário atual
+    usuario_atual = st.session_state.get("username_avarias", None)
+    if not usuario_atual:
+        usuario_atual = "admin"
 
     with st.sidebar:
         st.title("Navegação")
-        if usuario_atual == "kairo":
+        if usuario_atual == "gerente":
             setor = "Avarias Padaria"
-            st.markdown("**Usuário restrito: apenas Avarias Padaria**")
+            st.info("Acesso restrito: Avarias Padaria")
         else:
             setor = st.selectbox('Escolha o setor', folhas)
         tipo_periodo = st.selectbox('Escolha o período', ['Geral', 'Mês', 'Semana'])
-        
+
         # Carregar dados para filtro de responsável
         df_temp = carregar_dados(setor)
         responsaveis = []
@@ -187,7 +182,7 @@ def app():
         else:
             responsavel_filter = []
 
-        if usuario_atual != "kairo":
+        if usuario_atual != "gerente":
             if st.button("Ir para Dashboard Prevenção"):
                 st.session_state.page = "dashboard"
                 st.session_state.logged_in_avarias = False
@@ -217,14 +212,21 @@ def app():
         df_filtrado = filtrar_por_periodo(df, tipo_periodo, valor_periodo, meses)
     else:
         df_filtrado = df.copy()
-        df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
+        # Restrição: gerente só vê padaria, admin vê tudo
+        if usuario_atual == "gerente":
+            df_all = processar_datas(carregar_dados("Avarias Padaria")).assign(CATEGORIA="Avarias Padaria")
+        else:
+            df_all = pd.concat([processar_datas(carregar_dados(folha)).assign(CATEGORIA=folha) for folha in folhas])
         
         # Gráficos para visão geral
         vendas_por_mes_por_setor = df_all.groupby(['CATEGORIA', 'mês']).agg({'VLR. TOT. VENDA': 'sum'}).reset_index()
         vendas_por_mes_por_setor['mês_nome'] = vendas_por_mes_por_setor['mês'].apply(
             lambda x: meses[int(x) - 1] if pd.notna(x) else 'Desconhecido'
         )
-        
+        # Se gerente, só mostra o gráfico da padaria
+        if usuario_atual == "gerente":
+            vendas_por_mes_por_setor = vendas_por_mes_por_setor[vendas_por_mes_por_setor['CATEGORIA'] == "Avarias Padaria"]
+
         fig_vendas_por_setor = px.line(vendas_por_mes_por_setor, x='mês_nome', y='VLR. TOT. VENDA', color='CATEGORIA')
         fig_vendas_por_setor.update_layout(title="Valor Total de Venda por Mês por Setor")
         st.plotly_chart(fig_vendas_por_setor)
