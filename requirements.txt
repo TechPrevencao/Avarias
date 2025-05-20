@@ -2,3 +2,6 @@ pandas
 streamlit
 plotly
 openpyxl  # For reading .xlsm file
+fpdf
+tempfile
+kaleido
