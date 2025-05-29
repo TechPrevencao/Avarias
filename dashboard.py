@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from datetime import datetime
+import io
 
 VALID_CREDENTIALS = {"admin": "prevencao123"}
 def check_login(username, password):
@@ -154,6 +155,11 @@ def formatar_moeda(valor):
         inteiro_com_pontos = digito + inteiro_com_pontos
     return f"R$ {inteiro_com_pontos},{decimal}"
 
+# Função para exportar DataFrame para PDF
+def exportar_pdf(df, titulo="Tabela de Prevenções Detalhada"):
+    st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
+    return None
+
 # Interface do Streamlit
 def app():
     if not login_popup("dashboard"):
@@ -241,6 +247,10 @@ def app():
     df_exibicao['VLR. UNI. (R$)'] = df_exibicao['VLR. UNI.'].apply(formatar_moeda)
     df_exibicao['TOTAL (R$)'] = df_exibicao['TOTAL'].apply(formatar_moeda)
     st.dataframe(df_exibicao[['DATA', 'DESCRIÇÃO', 'QTD', 'VLR. UNI. (R$)', 'TOTAL (R$)', 'PREV.']])
+
+    # Botão para exportar para PDF
+    if st.button("Exportar tabela detalhada para PDF"):
+        st.warning("Exportação para PDF está desabilitada devido a dependências ausentes no ambiente.")
     
     # Tabela de resumo
     st.markdown("### Tabela de Prevenções - Resumo")
